@@ -57,21 +57,24 @@ FILE
     structure_load = rake.task("db:structure:load_if_sql")
     db_migrate     = rake.task("db:migrate")
 
-    return [] if db_migrate.not_defined?
+    runners = []
+    return runners if db_migrate.not_defined?
 
-    if schema_load.not_defined? && structure_load.not_defined?
-      result = detect_schema_format
-      case result.lines.last.chomp
-      when "ruby"
-        schema_load    = rake.task("db:schema:load")
-      when "sql" # currently not a possible edge case, we think
-        structure_load = rake.task("db:structure:load")
-      else
-        puts "Could not determine schema/structure from `ActiveRecord::Base.schema_format`:\n#{result}"
-      end
+    result = detect_schema_format
+
+    case result.lines.last.chomp
+    when "sql" # currently not a possible edge case, we think
+      structure_load = rake.task("db:structure:load") if structure_load.not_defined?
+      runners << structure_load
+    when "ruby"
+      schema_load = rake.task("db:schema:load") if schema_load.not_defined?
+      runners << schema_load
+    else
+      puts "Could not determine schema/structure from `ActiveRecord::Base.schema_format`:\n#{result}"
     end
+    runners << db_migrate
 
-    [schema_load, structure_load, db_migrate]
+    runners
   end
 
 
